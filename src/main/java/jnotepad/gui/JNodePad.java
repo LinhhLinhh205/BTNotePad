@@ -18,6 +18,8 @@ import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.text.SimpleDateFormat;
+import java.util.Date;
 import javax.swing.JCheckBoxMenuItem;
 import javax.swing.JFileChooser;
 import javax.swing.JFrame;
@@ -28,6 +30,8 @@ import javax.swing.JOptionPane;
 import javax.swing.JScrollPane;
 import javax.swing.JTextArea;
 import javax.swing.KeyStroke;
+import javax.swing.undo.CannotUndoException;
+import javax.swing.undo.UndoManager;
 
 /**
  *
@@ -45,12 +49,14 @@ public class JNodePad extends JFrame {
     private JCheckBoxMenuItem iWrap, iStatus;
     private File currentfile;
     private JTextArea txtArea;
+    private UndoManager undomanage;
 
     public JNodePad(String title) {
         setTitle(title);
         createMenu();
         createGui();
         processEvent();
+        undomanage = new UndoManager();
         setSize(600, 450);
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -138,13 +144,14 @@ public class JNodePad extends JFrame {
         add(scroll);
         txtArea.setLineWrap(true);
         txtArea.setFont(new Font("Arial", Font.PLAIN, 20));
+        txtArea.getDocument().addUndoableEditListener(undomanage);
     }
 
     private void processEvent() {
         iexit.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                if (JOptionPane.showConfirmDialog(null, "Bạn chắc chắn thoát?") == JOptionPane.YES_OPTION) {
+                if (JOptionPane.showConfirmDialog(null, "Do you want exit to Notepad?") == JOptionPane.YES_OPTION) {
                     System.exit(0);
                 }
             }
@@ -156,6 +163,7 @@ public class JNodePad extends JFrame {
             }
 
         });
+
         iopen.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
@@ -193,6 +201,27 @@ public class JNodePad extends JFrame {
             }
 
         });
+        itime.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                timefile();
+            }
+
+        });
+        idelete.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                deletefile();
+            }
+
+        });
+        iundo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                undofile();
+            }
+
+        });
     }
 
     private void saveFile() {
@@ -206,7 +235,7 @@ public class JNodePad extends JFrame {
         }
         try {
             FileOutputStream fos = new FileOutputStream(currentfile);
-            fos.write(txtArea.getText().getBytes());
+            fos.write(txtArea.getText().getBytes());            
             fos.close();
         } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi ghi file");
@@ -217,10 +246,12 @@ public class JNodePad extends JFrame {
         JFileChooser ofile = new JFileChooser();
         if (ofile.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
+                currentfile=ofile.getSelectedFile();
                 FileInputStream fis = new FileInputStream(ofile.getSelectedFile());
                 byte[] b = new byte[fis.available()];
                 fis.read(b);
                 txtArea.setText(new String(b));
+                fis.close();
             } catch (Exception ex) {
                 JOptionPane.showMessageDialog(this, "Lỗi đọc file");
             }
@@ -229,7 +260,7 @@ public class JNodePad extends JFrame {
 
     private void newfile() {
         if (txtArea.getText().length() > 0) {
-            int confirm = JOptionPane.showConfirmDialog(this, "Bạn có muốn lưu file không?", "Xác nhận", JOptionPane.YES_NO_CANCEL_OPTION);
+            int confirm = JOptionPane.showConfirmDialog(this, "Do you want save changes to Untitled?", "Notepad", JOptionPane.YES_NO_CANCEL_OPTION);
             if (confirm == JOptionPane.YES_OPTION) {
                 saveFile();
             } else if (confirm == JOptionPane.CANCEL_OPTION) {
@@ -250,17 +281,40 @@ public class JNodePad extends JFrame {
     }
 
     private void pastefile() {
-        try{
+        try {
             Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            Transferable content=clipboard.getContents(this);
-            if(content !=null && content.isDataFlavorSupported(DataFlavor.stringFlavor)){
-                String paste=(String) content.getTransferData(DataFlavor.stringFlavor);
-                int chuoi=txtArea.getCaretPosition();
+            Transferable content = clipboard.getContents(this);
+            if (content != null && content.isDataFlavorSupported(DataFlavor.stringFlavor)) {
+                String paste = (String) content.getTransferData(DataFlavor.stringFlavor);
+                int chuoi = txtArea.getCaretPosition();
                 txtArea.insert(paste, chuoi);
             }
-        }catch(Exception ex){
+        } catch (Exception ex) {
             JOptionPane.showMessageDialog(this, "Lỗi");
         }
+    }
+
+    private void timefile() {
+        Date date = new Date();
+        SimpleDateFormat formatter = new SimpleDateFormat("h:mm a M/d/yyyy");
+        txtArea.append(formatter.format(date));
+    }
+
+    private void deletefile() {
+        txtArea.setText("");
+    }
+
+    private void undofile() {
+        if (undomanage.canUndo()) {
+            try {
+                undomanage.undo();
+            } catch (CannotUndoException ex) {
+                JOptionPane.showMessageDialog(this, "Không thể hoàn tác.");
+            }
+        } else {
+            JOptionPane.showMessageDialog(this, "Không có gì để hoàn tác.");
+        }
+
     }
 
 }
