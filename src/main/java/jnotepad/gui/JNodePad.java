@@ -171,7 +171,6 @@ public class JNodePad extends JFrame {
             public void actionPerformed(ActionEvent e) {
                 saveasfile();
             }
-
         });
 
         iopen.addActionListener(new ActionListener() {
@@ -328,7 +327,7 @@ public class JNodePad extends JFrame {
     }
 
     private void deletefile() {
-        if (txtArea.getSelectedText() != null) {           
+        if (txtArea.getSelectedText() != null) {
             int start = txtArea.getSelectionStart();
             int end = txtArea.getSelectionEnd();
             txtArea.replaceRange("", start, end);
