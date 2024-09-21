@@ -8,7 +8,7 @@ import java.awt.Font;
 import java.awt.Toolkit;
 import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.StringSelection;
+//import java.awt.datatransfer.StringSelection;
 import java.awt.datatransfer.Transferable;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -18,6 +18,8 @@ import java.awt.event.KeyEvent;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileWriter;
+import java.io.IOException;
 import java.text.SimpleDateFormat;
 import java.util.Date;
 import javax.swing.JCheckBoxMenuItem;
@@ -50,6 +52,7 @@ public class JNodePad extends JFrame {
     private File currentfile;
     private JTextArea txtArea;
     private UndoManager undomanage;
+    private int size = 20;
 
     public JNodePad(String title) {
         setTitle(title);
@@ -163,6 +166,13 @@ public class JNodePad extends JFrame {
             }
 
         });
+        isaveas.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                saveasfile();
+            }
+
+        });
 
         iopen.addActionListener(new ActionListener() {
             @Override
@@ -190,14 +200,20 @@ public class JNodePad extends JFrame {
         icopy.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                copyfile();
+                txtArea.copy();
             }
 
+        });
+        icut.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                txtArea.cut();
+            }
         });
         ipaste.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                pastefile();
+                txtArea.paste();
             }
 
         });
@@ -222,23 +238,57 @@ public class JNodePad extends JFrame {
             }
 
         });
+        izoomin.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                size += 4;
+                txtArea.setFont(new Font("Arial", Font.PLAIN, size));
+            }
+        });
+        izoomout.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                size -= 4;
+                txtArea.setFont(new Font("Arial", Font.PLAIN, size));
+            }
+        });
+        iretore.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                size = 20;
+                txtArea.setFont(new Font("Arial", Font.PLAIN, size));
+            }
+        });
     }
 
     private void saveFile() {
         if (currentfile == null) {
-            JFileChooser sflie = new JFileChooser();
-            if (sflie.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
-                currentfile = sflie.getSelectedFile();
-            } else {
-                return;
+            saveasfile();
+        } else {
+            try (FileWriter wr = new FileWriter(currentfile)) {
+                txtArea.write(wr);
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi lưu file");
             }
         }
-        try {
-            FileOutputStream fos = new FileOutputStream(currentfile);
-            fos.write(txtArea.getText().getBytes());            
-            fos.close();
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi ghi file");
+    }
+
+    private void saveasfile() {
+        JFileChooser sflie = new JFileChooser();
+        if (sflie.showSaveDialog(this) == JFileChooser.APPROVE_OPTION) {
+
+            try {
+                currentfile = sflie.getSelectedFile();
+                FileOutputStream fos = new FileOutputStream(currentfile);
+                try {
+                    fos.write(txtArea.getText().getBytes());
+                    fos.close();
+                } catch (IOException ex) {
+                    JOptionPane.showMessageDialog(this, "Lỗi");
+                }
+            } catch (Exception ex) {
+                JOptionPane.showMessageDialog(this, "Lỗi ghi file");
+            }
         }
     }
 
@@ -246,7 +296,7 @@ public class JNodePad extends JFrame {
         JFileChooser ofile = new JFileChooser();
         if (ofile.showOpenDialog(this) == JFileChooser.APPROVE_OPTION) {
             try {
-                currentfile=ofile.getSelectedFile();
+                currentfile = ofile.getSelectedFile();
                 FileInputStream fis = new FileInputStream(ofile.getSelectedFile());
                 byte[] b = new byte[fis.available()];
                 fis.read(b);
@@ -271,29 +321,6 @@ public class JNodePad extends JFrame {
         currentfile = null;
     }
 
-    private void copyfile() {
-        String text = txtArea.getSelectedText();
-        if (text != null) {
-            StringSelection selection = new StringSelection(text);
-            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            clipboard.setContents(selection, null);
-        }
-    }
-
-    private void pastefile() {
-        try {
-            Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-            Transferable content = clipboard.getContents(this);
-            if (content != null && content.isDataFlavorSupported(DataFlavor.stringFlavor)) {
-                String paste = (String) content.getTransferData(DataFlavor.stringFlavor);
-                int chuoi = txtArea.getCaretPosition();
-                txtArea.insert(paste, chuoi);
-            }
-        } catch (Exception ex) {
-            JOptionPane.showMessageDialog(this, "Lỗi");
-        }
-    }
-
     private void timefile() {
         Date date = new Date();
         SimpleDateFormat formatter = new SimpleDateFormat("h:mm a M/d/yyyy");
@@ -301,7 +328,13 @@ public class JNodePad extends JFrame {
     }
 
     private void deletefile() {
-        txtArea.setText("");
+        if (txtArea.getSelectedText() != null) {           
+            int start = txtArea.getSelectionStart();
+            int end = txtArea.getSelectionEnd();
+            txtArea.replaceRange("", start, end);
+        } else {
+            txtArea.setText("");
+        }
     }
 
     private void undofile() {
